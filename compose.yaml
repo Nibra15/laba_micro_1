@@ -1,0 +1,67 @@
+services:
+  app1:
+    build: .
+    container_name: app1
+    expose:
+      - "6080"
+
+  app2:
+    build: .
+    container_name: app2
+    expose:
+      - "6080"
+
+  app3:
+    build: .
+    container_name: app3
+    expose:
+      - "6080"
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./balancer:/etc/nginx/nginx.conf
+    depends_on:
+      - app1
+      - app2
+      - app3
+  db:
+    image: postgres:17.4-alpine3.21
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASS}
+      - POSTGRES_DB=${DB_NAME}
+    ports:
+      - 127.0.0.1:${LOCAL_DB_PORT}:5432
+    volumes:
+      - database-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d ${DB_NAME} -U ${DB_USER}"]
+      retries: 10
+      interval: 5s
+      timeout: 5s
+      start_period: 10s
+  migration-service:
+    env_file:
+      - ./.env
+    image: flyway/flyway
+    volumes:
+      - ./migrations:/flyway/sql
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      [
+        "-url=jdbc:postgresql://db:$LOCAL_DB_PORT/$DB_NAME",
+        "-user=$DB_USER",
+        "-password=$DB_PASS",
+        "-target=$STATE_FOR_MIGRATIONS",
+        "migrate",
+      ]
+
+volumes:
+  database-data:
