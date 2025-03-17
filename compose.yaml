@@ -1,0 +1,30 @@
+services:
+  app1:
+    build: .
+    container_name: app1
+    expose:
+      - "6080"
+
+  app2:
+    build: .
+    container_name: app2
+    expose:
+      - "6080"
+
+  app3:
+    build: .
+    container_name: app3
+    expose:
+      - "6080"
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    ports:
+      - "8080:80"
+    volumes:
+      - ./balancer:/etc/nginx/nginx.conf
+    depends_on:
+      - app1
+      - app2
+      - app3
